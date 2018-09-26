@@ -1,75 +1,123 @@
 from socket import*
 from ssl import*
 from base64 import*
+from datetime import*
 
-def decodeMsg(msg,is64):
-    msg = msg.decode('utf-8')
-    if(is64):
-        msg = b64decode(msg).decode('utf-8')
-    return msg
+class SmtpDialog:
 
-servidor = 'smtp.gmail.com'
-address = gethostbyname(servidor)
+    def __init__(self,servidor,porta):
+        self.servidorName = servidor
+        self.servidorPorta = porta
+        self.ipServidor = gethostbyname(self.servidorName)
 
-porta = 465 #sevidor ssl do gmail
-sock = socket(AF_INET, SOCK_STREAM)
-sslSock = wrap_socket(sock) #envelopa o socket como um socket SSL
-sslSock.connect((servidor,porta))
-print('Meu ip: '+gethostbyname(gethostname()) +'\n')
-print('Servidor smtp: '+address+'\n')
+        #Protocolos - AF_INET = IPv4 ; SOCK_STREAM = TCP
+        sock = socket(AF_INET, SOCK_STREAM)
 
-message = decodeMsg(sslSock.recv(1024),False)
-print(message)
+        #Envelopa o socket como um socket SSL
+        self.sslSocket = wrap_socket(sock)
 
+        #Conecta com o servidor
+        self.sslSocket.connect((self.ipServidor, self.servidorPorta))
 
-sslSock.send('HELO smtp.gmail.com\r\n'.encode())
-message = decodeMsg(sslSock.recv(1024),False)
-print(message)
+        print('Meu ip: ' + gethostbyname(gethostname()) )
+        print('Servidor smtp: ' + self.ipServidor + '\n')
 
-sslSock.send('AUTH LOGIN\r\n'.encode())
-message = decodeMsg(sslSock.recv(1024),False)
-print(message)
-
-#usuario
-print( decodeMsg(b64decode(message[4:]),False) )
-username = input("")
-sslSock.send((b64encode(username.encode()))+'\r\n'.encode())
-message = decodeMsg(sslSock.recv(1024),False)
-print(message)
-
-#senha
-if(message[:3] == '334'):
-    print(  decodeMsg(b64decode(message[4:]),False) )
-    password = input("")
-    sslSock.send((b64encode(password.encode()))+'\r\n'.encode())
-    message = decodeMsg(sslSock.recv(1024),False)
-    print(message)
-
-#MANDAR O EMAIL DE FATO
-sslSock.send('MAIL FROM: <torugok@gmail.com>\r\n'.encode())
-message = decodeMsg(sslSock.recv(1024),False)
-print(message)
-
-sslSock.send('RCPT To: <torugok@gmail.com>\r\n'.encode())
-message = decodeMsg(sslSock.recv(1024),False)
-print(message)
+        print("Conexão estabelecida.")
+        #primeira mensagem do servidor
+        self.receive()
 
 
-sslSock.send('DATA\r\n'.encode())
-message = decodeMsg(sslSock.recv(1024),False)
-print(message)
+    def helo(self):
+        self.send("HELO "+self.servidorName)
+        self.receive()
 
-#mandando mensagem
-sslSock.send('Eu sei mandar emails pelo python sou genio...\r\n'.encode())
-sslSock.send('.\r\n'.encode()) #encerrando a mensagem
-message = decodeMsg(sslSock.recv(1024),False)
-print(message)
+    def auth_login(self):
+        self.send('AUTH LOGIN')
+        message = self.receive()
 
-#adeus
-sslSock.send('QUIT\r\n'.encode())
-message = decodeMsg(sslSock.recv(1024),False)
-print(message)
+        # usuario
+        print(self.decode_msg(b64decode(message[4:])))
+        username = input("")
+
+        self.send(b64encode(username.encode()), True)
+        message = self.receive()
+
+        # senha
+        if (message[:3] == '334'):
+            print(self.decode_msg(b64decode(message[4:])))
+            password = input("")
+
+            self.send(b64encode(password.encode()), True)
+            self.receive()
+
+    def enviar_email(self):
+        de = input("De: ")
+        self.send("MAIL FROM: <"+de+">")
+        self.receive()
+
+        para = input("Para: ")
+        self.send("RCPT TO: <"+para+">")
+        self.receive()
+
+        self.send("DATA")
+        self.receive()
+
+        #self.send("Date: "+datetime.datetime.day+" "+datetime.datetime.)
+
+        self.send("From: " + de)
+        assunto = input("Assunto: \n")
+        self.send("Subject: " + assunto)
+        self.send("To: " + para)
+
+
+        terminou = False
+        while(not terminou):
+            mensagem = input("Digite sua mensagem: \n")
+            self.send(mensagem)
+
+            finaliza = input("Finalizar? <y/n> \n")
+            if finaliza == 'y':
+                terminou = True
+                break
+
+        self.send(".")
+
+        self.receive()
+
+
+    def finaliza(self):
+        self.send("QUIT")
+        self.receive()
+        self.sslSocket.close()
+
+    def decode_msg(self,msg):
+        return msg.decode('utf-8')
+
+    def receive(self):
+        mensagem = self.decode_msg(self.sslSocket.recv(1024))
+        print("Servidor: " + mensagem)
+        if(mensagem[:3] == '535'):
+            print("Usuário ou senha inválidos!\nEncerrando conexão...")
+            self.finaliza()
+            quit()
+        return mensagem
+
+    def send(self, mensagem,  b64=False):
+        if b64 == False:
+            print("Cliente: " + mensagem)
+            mensagem = mensagem.encode()
+        else:
+            print("Cliente: " + mensagem.decode())
+
+        self.sslSocket.send(mensagem + '\r\n'.encode())
 
 
 
-sslSock.close()
+smtp = SmtpDialog('smtp.gmail.com', 465)
+
+smtp.helo()
+smtp.auth_login()
+
+smtp.enviar_email()
+
+smtp.finaliza()
