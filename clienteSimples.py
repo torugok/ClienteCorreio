@@ -20,7 +20,7 @@ class SmtpDialog:
         self.sslSocket.connect((self.ipServidor, self.servidorPorta))
 
         print('Meu ip: ' + gethostbyname(gethostname()) )
-        print('Servidor smtp: ' + self.ipServidor + '\n')
+        print('Servidor SMTP: ' + self.ipServidor + '\n')
 
         print("Conexão estabelecida.")
         #primeira mensagem do servidor
@@ -31,6 +31,7 @@ class SmtpDialog:
         self.send("HELO "+self.servidorName)
         self.receive()
 
+    #http://www.samlogic.net/articles/smtp-commands-reference-auth.htm
     def auth_login(self):
         self.send('AUTH LOGIN')
         message = self.receive()
@@ -111,9 +112,20 @@ class SmtpDialog:
 
         self.sslSocket.send(mensagem + '\r\n'.encode())
 
+#google
+#smtp.gmail.com
+#465
 
+#unifesspa
+#smtp.unifesspa.edu.br
+#465
 
-smtp = SmtpDialog('smtp.gmail.com', 465)
+print("Bem vindo ao utilitário de envio de email em Python. By: Victor/Allef/Julielson")
+servidor = input("Servidor SMTP: ")
+porta = input("Porta SSL: ")
+
+smtp = SmtpDialog(servidor, int(porta))
+
 
 smtp.helo()
 smtp.auth_login()
