@@ -32,6 +32,7 @@ class SmtpDialog:
         self.receive()
 
     #http://www.samlogic.net/articles/smtp-commands-reference-auth.htm
+    #Extensão para autenticação: https://tools.ietf.org/html/rfc4954
     def auth_login(self):
         self.send('AUTH LOGIN')
         message = self.receive()
